@@ -1,0 +1,76 @@
+import pandas as pd
+import folium
+import tkinter as tk
+from tkinter import filedialog, messagebox
+
+def create_map(input_file, output_file):
+    # Read the CSV file
+    df = pd.read_csv(input_file)
+
+    # Create a map centered around the average latitude and longitude
+    map_center = [df['CurrentLatitude'].mean(), df['CurrentLongitude'].mean()]
+    my_map = folium.Map(location=map_center, zoom_start=15)
+
+    # Add markers to the map
+    for index, row in df.iterrows():
+        if pd.notna(row['CurrentLatitude']) and pd.notna(row['CurrentLongitude']):
+            popup_content = f"""
+            <strong>AuthMode:</strong> {row['AuthMode'] if pd.notna(row['AuthMode']) else 'No AuthMode'}<br>
+            <strong>FirstSeen:</strong> {row['FirstSeen'] if pd.notna(row['FirstSeen']) else 'No FirstSeen'}<br>
+            <strong>Channel:</strong> {row['Channel'] if pd.notna(row['Channel']) else 'No Channel'}<br>
+            <strong>RSSI:</strong> {row['RSSI'] if pd.notna(row['RSSI']) else 'No RSSI'}
+            """
+            folium.Marker(
+                location=[row['CurrentLatitude'], row['CurrentLongitude']],
+                popup=folium.Popup(popup_content, max_width=300),
+                tooltip=row['SSID'] if pd.notna(row['SSID']) else 'No SSID'
+            ).add_to(my_map)
+
+    # Save the map to an HTML file
+    my_map.save(output_file)
+
+def select_input_file():
+    file_path = filedialog.askopenfilename(filetypes=[("CSV files", "*.csv")])
+    input_file_entry.delete(0, tk.END)
+    input_file_entry.insert(0, file_path)
+
+def select_output_file():
+    file_path = filedialog.asksaveasfilename(defaultextension=".html", filetypes=[("HTML files", "*.html")])
+    output_file_entry.delete(0, tk.END)
+    output_file_entry.insert(0, file_path)
+
+def run_processing():
+    input_file = input_file_entry.get()
+    output_file = output_file_entry.get()
+    
+    if not input_file or not output_file:
+        messagebox.showwarning("Input Error", "Please select both input and output files.")
+        return
+    
+    try:
+        create_map(input_file, output_file)
+        messagebox.showinfo("Success", "Map created and saved successfully.")
+    except Exception as e:
+        messagebox.showerror("Processing Error", f"An error occurred: {e}")
+
+# Create the main window
+root = tk.Tk()
+root.title("WiFi Map Generator")
+
+# Input file selection
+tk.Label(root, text="Select Input CSV File:").grid(row=0, column=0, padx=10, pady=10, sticky="w")
+input_file_entry = tk.Entry(root, width=50)
+input_file_entry.grid(row=0, column=1, padx=10, pady=10)
+tk.Button(root, text="Browse...", command=select_input_file).grid(row=0, column=2, padx=10, pady=10)
+
+# Output file selection
+tk.Label(root, text="Select Output HTML File:").grid(row=1, column=0, padx=10, pady=10, sticky="w")
+output_file_entry = tk.Entry(root, width=50)
+output_file_entry.grid(row=1, column=1, padx=10, pady=10)
+tk.Button(root, text="Browse...", command=select_output_file).grid(row=1, column=2, padx=10, pady=10)
+
+# Run button
+tk.Button(root, text="Create Map", command=run_processing, width=20).grid(row=2, column=0, columnspan=3, pady=20)
+
+# Start the GUI event loop
+root.mainloop()
